@@ -1,0 +1,28 @@
+# Compiled object files
+*.o
+*.a
+*.so
+
+# Compiled source files
+*.pyc
+*.pyo
+
+# Backup files
+*~
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+
+# Meson build directories
+/build/
+
+
+# Subprojects
+/subprojects/*/build/
+
+/subprojects/*
+!/subprojects/**/*.wrap
+
+imgui.ini
