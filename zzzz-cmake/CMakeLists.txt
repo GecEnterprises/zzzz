@@ -4,6 +4,17 @@ project(zzzz)
 include(FetchContent)
 Set(FETCHCONTENT_QUIET FALSE)
 
+# Fetch ASIO SDK for Windows
+if(WIN32)
+    FetchContent_Declare(
+        asiosdk
+        URL "https://www.steinberg.net/asiosdk"
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(asiosdk)
+    set(USE_ASIO ON)
+endif()
+
 # Fetch GLFW for Linux
 if(NOT WIN32)
     FetchContent_Declare(
@@ -24,10 +35,28 @@ FetchContent_Declare(
     GIT_SHALLOW 1
 )
 
-FetchContent_MakeAvailable(imgui)
+FetchContent_Declare(
+    portaudio
+    GIT_REPOSITORY https://github.com/PortAudio/portaudio.git
+    GIT_TAG v19.7.0
+    GIT_PROGRESS TRUE
+    GIT_SHALLOW 1
+)
+
+# Configure PortAudio build options
+set(PA_BUILD_SHARED OFF CACHE BOOL "")
+set(PA_BUILD_STATIC ON CACHE BOOL "")
+set(PA_ENABLE_DEBUG_OUTPUT OFF CACHE BOOL "")
+
+# Windows-specific PortAudio options
+if(WIN32 AND USE_ASIO)
+    set(PA_USE_ASIO ON CACHE BOOL "Enable ASIO support")
+endif()
+
+FetchContent_MakeAvailable(imgui portaudio)
 
 # Specify C++ standard
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Platform-specific source files for ImGui
@@ -102,11 +131,33 @@ if(NOT WIN32)
     )
 endif()
 
-target_link_libraries(${PROJECT_NAME} PRIVATE imgui)
+# Add ASIO-specific include directories and definitions if enabled
+if(WIN32 AND USE_ASIO)
+    target_include_directories(${PROJECT_NAME} PRIVATE 
+        ${asiosdk_SOURCE_DIR}/common
+        ${asiosdk_SOURCE_DIR}/host
+        ${asiosdk_SOURCE_DIR}/host/pc
+    )
+    target_compile_definitions(${PROJECT_NAME} PRIVATE PA_USE_ASIO=1)
+    
+    # Also add ASIO includes to PortAudio
+    target_include_directories(portaudio_static PRIVATE
+        ${asiosdk_SOURCE_DIR}/common
+        ${asiosdk_SOURCE_DIR}/host
+        ${asiosdk_SOURCE_DIR}/host/pc
+    )
+endif()
+
+# Link libraries
+target_link_libraries(${PROJECT_NAME} PRIVATE 
+    imgui
+    portaudio_static
+)
 
 # Include directories for the main project
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${CMAKE_SOURCE_DIR}/include
+    ${portaudio_SOURCE_DIR}/include
 )
 
 # Set output directories
