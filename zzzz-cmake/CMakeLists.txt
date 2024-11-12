@@ -2,11 +2,26 @@ cmake_minimum_required(VERSION 3.15)
 project(zzzz)
 
 include(FetchContent)
+Set(FETCHCONTENT_QUIET FALSE)
+
+# Fetch GLFW for Linux
+if(NOT WIN32)
+    FetchContent_Declare(
+        glfw
+        GIT_REPOSITORY https://github.com/glfw/glfw.git
+        GIT_TAG 3.3.8
+        GIT_PROGRESS TRUE
+        GIT_SHALLOW 1
+    )
+    FetchContent_MakeAvailable(glfw)
+endif()
 
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
     GIT_TAG v1.91.5
+    GIT_PROGRESS TRUE
+    GIT_SHALLOW 1
 )
 
 FetchContent_MakeAvailable(imgui)
@@ -15,22 +30,33 @@ FetchContent_MakeAvailable(imgui)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Platform-specific source files for ImGui
+if(WIN32)
+    set(PLATFORM_SOURCES
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_dx11.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
+    )
+else()
+    set(PLATFORM_SOURCES
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+    )
+endif()
+
 add_library(imgui STATIC
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
     ${imgui_SOURCE_DIR}/imgui_tables.cpp
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_dx11.cpp
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
+    ${PLATFORM_SOURCES}
 )
 
-# Set compiler based on platform
+# Platform-specific configuration
 if(WIN32)
-    # Ensure we're using Visual Studio 2022
+    # Windows with DirectX 11
     set(CMAKE_GENERATOR_PLATFORM x64)
     set(CMAKE_GENERATOR "Visual Studio 17 2022")
-    # MSVC-specific options
     add_compile_options(/W4)
 
     target_link_libraries(imgui PRIVATE 
@@ -39,30 +65,46 @@ if(WIN32)
         d3dcompiler.lib
     )
 else()
-    # Use Clang on Linux
-    set(CMAKE_CXX_COMPILER clang++)
-    # Clang-specific options
+    # Linux with OpenGL3 and GLFW
+    set(CMAKE_CXX_COMPILER g++)
     add_compile_options(-Wall -Wextra)
+    
+    # Find OpenGL
+    find_package(OpenGL REQUIRED)
+    
+    target_link_libraries(imgui PRIVATE 
+        glfw
+        OpenGL::GL
+        dl
+    )
+    
+    # Add OpenGL3 definitions
+    target_compile_definitions(imgui PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD)
 endif()
 
-# Find all source files in src directory
-file(GLOB SOURCES "src/*.cpp")
+file(GLOB SOURCES 
+    "src/*.cpp"
+    "src/gui/*.cpp"
+)
 
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-
-target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR})
-
-
-target_link_libraries(${PROJECT_NAME} PRIVATE imgui)
-
+# Include directories
 target_include_directories(imgui PUBLIC 
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
 )
 
-# Include directories if needed
+if(NOT WIN32)
+    target_include_directories(imgui PUBLIC 
+        ${GLFW_SOURCE_DIR}/include
+    )
+endif()
+
+target_link_libraries(${PROJECT_NAME} PRIVATE imgui)
+
+# Include directories for the main project
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${CMAKE_SOURCE_DIR}/include
 )
