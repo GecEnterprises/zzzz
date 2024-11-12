@@ -16,17 +16,18 @@
 #include <iostream>
 #include <cmath>
 #include <memory>
+#include <numbers>
 
 // Audio parameters
 const unsigned int SAMPLE_RATE = 44100;
 const unsigned int CHANNELS = 2;     // Stereo output
 unsigned int BUFFER_FRAMES = 256;
-const double FREQUENCY = 560.0;      // 160 Hz sine wave
+const double FREQUENCY = 100.0;      // 160 Hz sine wave
 const float AMPLITUDE = 0.5f;        // 50% amplitude to avoid clipping
 
 // Global variables for sine wave generation
 double phase = 0.0;
-const double TWO_PI = 2.0 * M_PI;
+const double TWO_PI = 2.0 * std::numbers::pi;
 const double PHASE_INCREMENT = TWO_PI * FREQUENCY / SAMPLE_RATE;
 
 // Callback function for audio processing

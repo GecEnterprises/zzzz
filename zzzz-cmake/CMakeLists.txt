@@ -13,9 +13,24 @@ FetchContent_Declare(
     GIT_SHALLOW 1
 )
 
+set(RTAUDIO_BUILD_STATIC_LIBS true)
+
 # Configure RtAudio options before making it available
 if(WIN32)
+    add_definitions(
+        -DWIN32
+        -D__WINDOWS_WASAPI__
+    )
     set(RTAUDIO_API_WASAPI ON CACHE BOOL "Build WASAPI API" FORCE)
+    set(RTAUDIO_API_DS OFF CACHE BOOL "Build DirectSound API" FORCE)
+    set(RTAUDIO_API_ASIO OFF CACHE BOOL "Build ASIO API" FORCE)
+    
+    # Explicitly disable other APIs
+    set(RTAUDIO_API_JACK OFF CACHE BOOL "Build JACK API" FORCE)
+    set(RTAUDIO_API_ALSA OFF CACHE BOOL "Build ALSA API" FORCE)
+    set(RTAUDIO_API_OSS OFF CACHE BOOL "Build OSS4 API" FORCE)
+    set(RTAUDIO_API_PULSE OFF CACHE BOOL "Build PulseAudio API" FORCE)
+    set(RTAUDIO_API_CORE OFF CACHE BOOL "Build CoreAudio API" FORCE)
 else()
     set(RTAUDIO_API_ALSA ON CACHE BOOL "Build ALSA API" FORCE)
 endif()
