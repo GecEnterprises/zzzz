@@ -4,16 +4,27 @@ project(zzzz)
 include(FetchContent)
 Set(FETCHCONTENT_QUIET FALSE)
 
-# Fetch ASIO SDK for Windows
+# Fetch RtAudio
+FetchContent_Declare(
+    rtaudio
+    GIT_REPOSITORY https://github.com/thestk/rtaudio.git
+    GIT_TAG 6.0.1
+    GIT_PROGRESS TRUE
+    GIT_SHALLOW 1
+)
+
+# Configure RtAudio options before making it available
 if(WIN32)
-    FetchContent_Declare(
-        asiosdk
-        URL "https://www.steinberg.net/asiosdk"
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    )
-    FetchContent_MakeAvailable(asiosdk)
-    set(USE_ASIO ON)
+    set(RTAUDIO_API_WASAPI ON CACHE BOOL "Build WASAPI API" FORCE)
+else()
+    set(RTAUDIO_API_ALSA ON CACHE BOOL "Build ALSA API" FORCE)
 endif()
+
+# Important: Make RtAudio available before other dependencies
+FetchContent_MakeAvailable(rtaudio)
+
+# Get the RtAudio source directory for later use
+FetchContent_GetProperties(rtaudio)
 
 # Fetch GLFW for Linux
 if(NOT WIN32)
@@ -34,26 +45,7 @@ FetchContent_Declare(
     GIT_PROGRESS TRUE
     GIT_SHALLOW 1
 )
-
-FetchContent_Declare(
-    portaudio
-    GIT_REPOSITORY https://github.com/PortAudio/portaudio.git
-    GIT_TAG v19.7.0
-    GIT_PROGRESS TRUE
-    GIT_SHALLOW 1
-)
-
-# Configure PortAudio build options
-set(PA_BUILD_SHARED OFF CACHE BOOL "")
-set(PA_BUILD_STATIC ON CACHE BOOL "")
-set(PA_ENABLE_DEBUG_OUTPUT OFF CACHE BOOL "")
-
-# Windows-specific PortAudio options
-if(WIN32 AND USE_ASIO)
-    set(PA_USE_ASIO ON CACHE BOOL "Enable ASIO support")
-endif()
-
-FetchContent_MakeAvailable(imgui portaudio)
+FetchContent_MakeAvailable(imgui)
 
 # Specify C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -61,7 +53,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Platform-specific source files for ImGui
 if(WIN32)
-    set(PLATFORM_SOURCES
+    set(PLATFORM_SOURCES 
         ${imgui_SOURCE_DIR}/backends/imgui_impl_dx11.cpp
         ${imgui_SOURCE_DIR}/backends/imgui_impl_win32.cpp
     )
@@ -87,12 +79,7 @@ if(WIN32)
     set(CMAKE_GENERATOR_PLATFORM x64)
     set(CMAKE_GENERATOR "Visual Studio 17 2022")
     add_compile_options(/W4)
-
-    target_link_libraries(imgui PRIVATE 
-        d3d11.lib
-        dxgi.lib
-        d3dcompiler.lib
-    )
+    target_link_libraries(imgui PRIVATE d3d11.lib dxgi.lib d3dcompiler.lib)
 else()
     # Linux with OpenGL3 and GLFW
     set(CMAKE_CXX_COMPILER g++)
@@ -100,15 +87,13 @@ else()
     
     # Find OpenGL
     find_package(OpenGL REQUIRED)
-    
-    target_link_libraries(imgui PRIVATE 
-        glfw
-        OpenGL::GL
-        dl
-    )
+    target_link_libraries(imgui PRIVATE glfw OpenGL::GL dl)
     
     # Add OpenGL3 definitions
     target_compile_definitions(imgui PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD)
+    
+    # Find ALSA for RtAudio
+    find_package(ALSA REQUIRED)
 endif()
 
 file(GLOB SOURCES 
@@ -119,45 +104,27 @@ file(GLOB SOURCES
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES})
 
-# Include directories
-target_include_directories(imgui PUBLIC 
+# Include directories for ImGui
+target_include_directories(imgui PUBLIC
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
 )
 
 if(NOT WIN32)
-    target_include_directories(imgui PUBLIC 
-        ${GLFW_SOURCE_DIR}/include
-    )
-endif()
-
-# Add ASIO-specific include directories and definitions if enabled
-if(WIN32 AND USE_ASIO)
-    target_include_directories(${PROJECT_NAME} PRIVATE 
-        ${asiosdk_SOURCE_DIR}/common
-        ${asiosdk_SOURCE_DIR}/host
-        ${asiosdk_SOURCE_DIR}/host/pc
-    )
-    target_compile_definitions(${PROJECT_NAME} PRIVATE PA_USE_ASIO=1)
-    
-    # Also add ASIO includes to PortAudio
-    target_include_directories(portaudio_static PRIVATE
-        ${asiosdk_SOURCE_DIR}/common
-        ${asiosdk_SOURCE_DIR}/host
-        ${asiosdk_SOURCE_DIR}/host/pc
-    )
+    target_include_directories(imgui PUBLIC ${GLFW_SOURCE_DIR}/include)
 endif()
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} PRIVATE 
+target_link_libraries(${PROJECT_NAME} 
     imgui
-    portaudio_static
+    rtaudio
 )
 
 # Include directories for the main project
-target_include_directories(${PROJECT_NAME} PRIVATE 
+target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/include
-    ${portaudio_SOURCE_DIR}/include
+    ${rtaudio_SOURCE_DIR}
+    ${rtaudio_BINARY_DIR}  # Add this for RtAudio config header
 )
 
 # Set output directories

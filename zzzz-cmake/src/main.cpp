@@ -12,116 +12,98 @@
 //     #endif
 // }
 
-#include <portaudio.h>
-#include <cmath>
+#include <RtAudio.h>
 #include <iostream>
-#include <stdexcept>
+#include <cmath>
 #include <memory>
-#include <numbers>
 
-class AudioGenerator {
-private:
-    static constexpr double SAMPLE_RATE = 44100;
-    static constexpr double FREQUENCY = 66.0;  // 400Hz tone
-    static constexpr double AMPLITUDE = 0.5;    // 50% volume
-    double phase = 0.0;
+// Audio parameters
+const unsigned int SAMPLE_RATE = 44100;
+const unsigned int CHANNELS = 2;     // Stereo output
+unsigned int BUFFER_FRAMES = 256;
+const double FREQUENCY = 560.0;      // 160 Hz sine wave
+const float AMPLITUDE = 0.5f;        // 50% amplitude to avoid clipping
 
-    PaStream* stream = nullptr;
+// Global variables for sine wave generation
+double phase = 0.0;
+const double TWO_PI = 2.0 * M_PI;
+const double PHASE_INCREMENT = TWO_PI * FREQUENCY / SAMPLE_RATE;
 
-    // Callback function must be static to work with C API
-    static int paCallback(const void* inputBuffer, void* outputBuffer,
-                         unsigned long framesPerBuffer,
-                         const PaStreamCallbackTimeInfo* timeInfo,
-                         PaStreamCallbackFlags statusFlags,
-                         void* userData) {
-        auto* generator = static_cast<AudioGenerator*>(userData);
-        auto* out = static_cast<float*>(outputBuffer);
+// Callback function for audio processing
+int audioCallback(void* outputBuffer, void* /*inputBuffer*/, unsigned int nBufferFrames,
+                 double /*streamTime*/, RtAudioStreamStatus status, void* /*userData*/) {
+    if (status) {
+        std::cerr << "Stream underflow detected!" << std::endl;
+    }
+    
+    // Cast output buffer to float pointer
+    float* buffer = static_cast<float*>(outputBuffer);
+    
+    // Generate sine wave
+    for (unsigned int i = 0; i < nBufferFrames; i++) {
+        float sample = AMPLITUDE * static_cast<float>(sin(phase));
+        // Write to both channels (stereo)
+        buffer[i * CHANNELS] = sample;        // Left channel
+        buffer[i * CHANNELS + 1] = sample;    // Right channel
         
-        // Generate sine wave samples
-        for (unsigned long i = 0; i < framesPerBuffer; i++) {
-            out[i] = AMPLITUDE * std::sin(generator->phase);
-            
-            // Advance phase for next sample
-            generator->phase += 2.0 * std::numbers::pi * FREQUENCY / SAMPLE_RATE;
-            
-            // Keep phase in [0, 2π]
-            if (generator->phase >= 2.0 * std::numbers::pi) {
-                generator->phase -= 2.0 * std::numbers::pi;
-            }
-        }
-        
-        return paContinue;
-    }
-
-public:
-    AudioGenerator() {
-        PaError err = Pa_Initialize();
-        if (err != paNoError) {
-            throw std::runtime_error(std::string("PortAudio initialization failed: ") + 
-                                   Pa_GetErrorText(err));
-        }
-
-        // Open output stream
-        err = Pa_OpenDefaultStream(
-            &stream,
-            0,          // no input channels
-            1,          // mono output
-            paFloat32,  // sample format
-            SAMPLE_RATE,
-            paFramesPerBufferUnspecified,  // let PortAudio choose buffer size
-            paCallback,
-            this  // pass this instance to callback
-        );
-
-        if (err != paNoError) {
-            Pa_Terminate();
-            throw std::runtime_error(std::string("Failed to open stream: ") + 
-                                   Pa_GetErrorText(err));
+        // Update phase
+        phase += PHASE_INCREMENT;
+        if (phase >= TWO_PI) {
+            phase -= TWO_PI;
         }
     }
-
-    ~AudioGenerator() {
-        if (stream) {
-            Pa_CloseStream(stream);
-        }
-        Pa_Terminate();
-    }
-
-    void start() {
-        PaError err = Pa_StartStream(stream);
-        if (err != paNoError) {
-            throw std::runtime_error(std::string("Failed to start stream: ") + 
-                                   Pa_GetErrorText(err));
-        }
-        std::cout << "Playing 400Hz tone. Press Enter to stop..." << std::endl;
-    }
-
-    void stop() {
-        PaError err = Pa_StopStream(stream);
-        if (err != paNoError) {
-            throw std::runtime_error(std::string("Failed to stop stream: ") + 
-                                   Pa_GetErrorText(err));
-        }
-    }
-
-    bool isActive() const {
-        return Pa_IsStreamActive(stream) == 1;
-    }
-};
+    
+    return 0;
+}
 
 int main() {
+    // Create RtAudio instance
+    std::unique_ptr<RtAudio> audio;
     try {
-        AudioGenerator generator;
-        generator.start();
-        
-        // Wait for Enter key
-        std::cin.get();
-        
-        generator.stop();
-        return 0;
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        audio = std::make_unique<RtAudio>();
+    } catch (RtAudioErrorType& e) {
+        // std::cerr << "Failed to create RtAudio instance:\n" << e.getMessage() << std::endl;
         return 1;
     }
+    
+    // Check available audio devices
+    unsigned int devices = audio->getDeviceCount();
+    if (devices < 1) {
+        std::cerr << "No audio devices found!" << std::endl;
+        return 1;
+    }
+    
+    // Set output parameters
+    RtAudio::StreamParameters parameters;
+    parameters.deviceId = audio->getDefaultOutputDevice();
+    parameters.nChannels = CHANNELS;
+    parameters.firstChannel = 0;
+    
+    // Set stream options
+    RtAudio::StreamOptions options;
+    options.flags = RTAUDIO_SCHEDULE_REALTIME;
+    
+    try {
+        // Open and start the stream
+        audio->openStream(&parameters, nullptr, RTAUDIO_FLOAT32,
+                         SAMPLE_RATE, &BUFFER_FRAMES, &audioCallback,
+                         nullptr, &options);
+        audio->startStream();
+        
+        std::cout << "Playing 160Hz sine wave. Press Enter to quit..." << std::endl;
+        std::cin.get();
+        
+        // Stop and close the stream
+        if (audio->isStreamRunning()) {
+            audio->stopStream();
+        }
+        if (audio->isStreamOpen()) {
+            audio->closeStream();
+        }
+    } catch (RtAudioErrorType& e) {
+        // std::cerr << "Error:\n" << e.getMessage() << std::endl;
+        return 1;
+    }
+    
+    return 0;
 }
