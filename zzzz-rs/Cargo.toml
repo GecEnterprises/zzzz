@@ -1,0 +1,16 @@
+[package]
+name = "zzzz-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+copypasta = "0.8"
+glium = { version = "0.35.0", default-features = true }
+image = "0.23"
+cpal = "0.15.3"
+imgui-glium-renderer = { version = "0.13.0", git = "https://github.com/imgui-rs/imgui-glium-renderer" }
+imgui = { git = "https://github.com/imgui-rs/imgui-rs", version = "0.12", features = [
+    "tables-api",
+] }
+imgui-winit-support = { version = "0.13", git = "https://github.com/imgui-rs/imgui-winit-support" }
+crossbeam-channel = "0.5.13"
