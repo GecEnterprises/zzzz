@@ -124,6 +124,7 @@ endif()
 file(GLOB SOURCES 
     "src/*.cpp"
     "src/gui/*.cpp"
+    "src/audio/*.cpp"
 )
 
 # Create executable

@@ -4,11 +4,16 @@
 #include <memory>
 #include <numbers>
 
+#include "../zzzz.h"
+
+#include <boost/signals2.hpp>
+#include <boost/thread/thread.hpp>
+
 // Audio parameters
 const unsigned int SAMPLE_RATE = 44100;
 const unsigned int CHANNELS = 2;     // Stereo output
 unsigned int BUFFER_FRAMES = 256;
-const double FREQUENCY = 0.1;      // 160 Hz sine wave
+const double FREQUENCY = 200.1;      // 160 Hz sine wave
 const float AMPLITUDE = 0.5f;        // 50% amplitude to avoid clipping
 
 // Global variables for sine wave generation
@@ -43,7 +48,7 @@ int audioCallback(void* outputBuffer, void* /*inputBuffer*/, unsigned int nBuffe
     return 0;
 }
 
-int main() {
+int exec() {
     // Create RtAudio instance
     std::unique_ptr<RtAudio> audio;
     try {
@@ -95,4 +100,8 @@ int main() {
     }
 
     return 0;
+}
+
+boost::thread launch_audio_thread(std::shared_ptr<ZzzzState> signals) {
+    return boost::thread(exec);
 }
