@@ -13,6 +13,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Boost)
 
+FetchContent_Declare(
+    minimp3
+    GIT_REPOSITORY https://github.com/lieff/minimp3
+    GIT_PROGRESS TRUE
+    GIT_SHALLOW 1
+)
+
+FetchContent_MakeAvailable(minimp3)
 
 # Fetch RtAudio
 FetchContent_Declare(
@@ -146,6 +154,11 @@ target_link_libraries(${PROJECT_NAME}
     rtaudio
     Boost::container
     Boost::thread
+)
+
+# Include minimp3 headers
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${minimp3_SOURCE_DIR}  # Include directory of minimp3
 )
 
 # Include directories for the main project
