@@ -3,7 +3,17 @@ name = "zzzz-rs"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "v1"
+path = "src/v1/main.rs"
+
+[[bin]]
+name = "v2"
+path = "src/v2/audio/bin/main.rs"
+
 [dependencies]
+tracing = "0.1"
+tracing-subscriber = "0.3"
 copypasta = "0.8"
 glium = { version = "0.35.0", default-features = true }
 image = "0.23"
@@ -14,3 +24,6 @@ imgui = { git = "https://github.com/imgui-rs/imgui-rs", version = "0.12", featur
 ] }
 imgui-winit-support = { version = "0.13", git = "https://github.com/imgui-rs/imgui-winit-support" }
 crossbeam-channel = "0.5.13"
+symphonia = {version = "0.5.4", features = ["mp3"]}
+symphonia-bundle-mp3 = "0.5.4"
+anyhow = "1.0.93"

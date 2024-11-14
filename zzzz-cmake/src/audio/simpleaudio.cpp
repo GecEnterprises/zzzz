@@ -13,7 +13,7 @@
 const unsigned int SAMPLE_RATE = 44100;
 const unsigned int CHANNELS = 2;     // Stereo output
 unsigned int BUFFER_FRAMES = 256;
-const double FREQUENCY = 200.1;      // 160 Hz sine wave
+const double FREQUENCY = 10.1;      // 160 Hz sine wave
 const float AMPLITUDE = 0.5f;        // 50% amplitude to avoid clipping
 
 // Global variables for sine wave generation

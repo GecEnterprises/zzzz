@@ -131,7 +131,7 @@ pub fn create_context() -> imgui::Context {
     // value (as the scaling is handled by winit)
     imgui.fonts().add_font(&[
         FontSource::TtfData {
-            data: include_bytes!("../../resources/Roboto-Regular.ttf"),
+            data: include_bytes!("../../../resources/Roboto-Regular.ttf"),
             size_pixels: FONT_SIZE,
             config: Some(FontConfig {
                 // As imgui-glium-renderer isn't gamma-correct with
@@ -147,7 +147,7 @@ pub fn create_context() -> imgui::Context {
             }),
         },
         FontSource::TtfData {
-            data: include_bytes!("../../resources/mplus-1p-regular.ttf"),
+            data: include_bytes!("../../../resources/mplus-1p-regular.ttf"),
             size_pixels: FONT_SIZE,
             config: Some(FontConfig {
                 // Oversampling font helps improve text rendering at
