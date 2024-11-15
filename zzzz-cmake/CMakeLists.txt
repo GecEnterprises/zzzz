@@ -135,6 +135,7 @@ file(GLOB SOURCES
     "src/audio/*.cpp"
 )
 
+
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES})
 
@@ -174,3 +175,16 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
 )
+
+
+# Define the source and destination for the resources
+set(RESOURCES_DIR ${CMAKE_SOURCE_DIR}/resources)
+set(RESOURCE_OUTPUT_DIR ${CMAKE_BINARY_DIR}/bin/resources)
+
+# Ensure the output directory exists after the build
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${RESOURCE_OUTPUT_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${RESOURCES_DIR} ${RESOURCE_OUTPUT_DIR}
+    COMMENT "Copying resources to the binary output folder"
+)
+

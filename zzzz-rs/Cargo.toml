@@ -27,3 +27,4 @@ crossbeam-channel = "0.5.13"
 symphonia = {version = "0.5.4", features = ["mp3"]}
 symphonia-bundle-mp3 = "0.5.4"
 anyhow = "1.0.93"
+ringbuf = "0.4.7"

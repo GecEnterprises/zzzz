@@ -1,16 +1,26 @@
 use std::f32::consts::PI;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use ringbuf::{CachingCons, SharedRb};
+use ringbuf::consumer::Consumer;
+use ringbuf::storage::Heap;
+use ringbuf::wrap::caching::Caching;
 use tracing::{error, info};
-use crate::audio::AudioProducer;
 
 pub(crate) struct OutHandler {
     host: cpal::Host,
     device: cpal::Device,
-    config: cpal::SupportedStreamConfig
+    config: cpal::SupportedStreamConfig,
+    rbfs : Mutex<Vec<CachingCons<Arc<SharedRb<Heap<f32>>>>>>,
 }
 
 impl OutHandler {
+    pub(crate) fn add_ringbuf(&mut self, p0: CachingCons<Arc<SharedRb<Heap<f32>>>>) {
+        self.rbfs.lock().unwrap().push(p0);
+    }
+
     pub fn init() -> Result<Self, Box<dyn std::error::Error>> {
         let host = cpal::default_host();
 
@@ -25,7 +35,8 @@ impl OutHandler {
         Ok(OutHandler{
             host,
             device,
-            config
+            config,
+            rbfs: Mutex::new(Vec::new()),
         })
     }
 
@@ -48,20 +59,31 @@ impl OutHandler {
         info!("Stream config : {:?}", stream_config);
         let num_channels = stream_config.channels as usize;
 
+        let rbfs = self.rbfs.lock()?;
         let str = self.device.build_output_stream(
             &stream_config,
             move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                 for frame in data.chunks_mut(num_channels) {
-                    let phase_increment = 2.0 * PI * frequency / sample_rate;
+                    let mut rbfs = rbfs;
+                    if rbfs.len() > 0 {
+                        let mut rb: &mut Caching<Arc<SharedRb<Heap<f32>>>, false, true> = rbfs[0].as_mut();
+                        let val = rb.try_pop().unwrap();
 
-                    // Generate sine wave for each sample
-                    let mut chan_count = 1.0;
-                    for sample in frame.iter_mut() {
-                        *sample = (phase.sin()) * (volume / chan_count);
-                        phase = (phase + phase_increment) % (2.0 * PI);
-
-                        chan_count += 2.0;
+                        for sample in frame.iter_mut() {
+                            *sample = val;
+                        }
                     }
+
+                    // let phase_increment = 2.0 * PI * frequency / sample_rate;
+                    //
+                    // // Generate sine wave for each sample
+                    // let mut chan_count = 1.0;
+                    // for sample in frame.iter_mut() {
+                    //     *sample = (phase.sin()) * (volume / chan_count);
+                    //     phase = (phase + phase_increment) % (2.0 * PI);
+                    //
+                    //     chan_count += 2.0;
+                    // }
                 }
             },
             err_fn,
@@ -74,9 +96,5 @@ impl OutHandler {
         }
 
         Ok(())
-    }
-
-    pub fn add_producer(&self, producer: impl AudioProducer) {
-
     }
 }
