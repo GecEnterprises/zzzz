@@ -28,6 +28,13 @@ const double PHASE_INCREMENT = TWO_PI * FREQUENCY / SAMPLE_RATE;
 std::vector<mp3d_sample_t> all_pcm_data;
 int seek = 0;
 
+int seek_size = 1024 * 8;
+
+int start = 0;
+
+int jump = 0;
+int jump_mod = 5;
+
 // Callback function for audio processing
 int audioCallback(void* outputBuffer, void* /*inputBuffer*/, unsigned int nBufferFrames,
     double /*streamTime*/, RtAudioStreamStatus status, void* /*userData*/) {
@@ -42,12 +49,19 @@ int audioCallback(void* outputBuffer, void* /*inputBuffer*/, unsigned int nBuffe
     for (unsigned int i = 0; i < nBufferFrames; i++) {
         float sample = AMPLITUDE * static_cast<float>(sin(phase));
         // Write to both channels (stereo)
-        buffer[i * CHANNELS] = all_pcm_data[seek];        // Left channel
+        buffer[i * CHANNELS] = all_pcm_data[start + seek];        // Left channel
         seek+=1;
 
-        buffer[i * CHANNELS + 1] = all_pcm_data[seek];    // Right channel
-
+        buffer[i * CHANNELS + 1] = all_pcm_data[start + seek];    // Right channel
         seek+=1;
+
+        seek = seek % seek_size;
+        jump++;
+        jump = jump % jump_mod;
+
+        if (jump == 0) {
+            start++;
+        }
     }
 
     // fprintf(stdout, "%d\n", seek);
@@ -176,7 +190,8 @@ if (!file) {
     // Set stream options
     RtAudio::StreamOptions options;
     options.flags = RTAUDIO_SCHEDULE_REALTIME;
-
+	
+	srand(time(NULL));
     try {
         // Open and start the stream
         audio->openStream(&parameters, nullptr, RTAUDIO_FLOAT32,
@@ -187,9 +202,11 @@ if (!file) {
         std::cout << "Playing 160Hz sine wave. Press Enter to quit..." << std::endl;
 
         while (true) {
+            start = (rand() % all_pcm_data.size()) - (1024);
             std::cin.get();
-            seek = rand() % all_pcm_data.size();
-            fprintf(stdout, "seek at: %d", seek);
+            seek_size = 1024 * (rand() % 24);
+            jump_mod = rand() % 10;
+	    fprintf(stdout, "seek at: %d", start);
         }
 
         // Stop and close the stream
